@@ -1,0 +1,8 @@
+# Kernel and shell sources must stay LF-only; a CRLF checkout breaks the
+# kernel build and makes setup.sh fail under bash.
+* text=auto eol=lf
+*.sh text eol=lf
+*.c text eol=lf
+*.h text eol=lf
+*.md text eol=lf
+*.conf text eol=lf

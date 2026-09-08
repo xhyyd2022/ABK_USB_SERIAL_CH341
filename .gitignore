@@ -1,0 +1,41 @@
+# Build artifacts / kernel build outputs
+*.o
+*.ko
+*.mod
+*.mod.c
+*.cmd
+*.symvers
+*.order
+Module.symvers
+modules.order
+.tmp_versions/
+out/
+build/
+dist/
+
+# Module runtime backups created by setup.sh
+*.abk.bak
+*.bak
+*.orig
+*.rej
+
+# Editor / OS noise
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Secrets / local environment (never commit)
+.env
+.env.*
+*.local
+secrets/
+*.key
+*.pem
+id_rsa*
+id_ed25519*
+
+# Logs
+*.log

@@ -65,6 +65,18 @@ abk_install_file() {
   abk_log "installed: $src -> $dst"
 }
 
+# abk_ensure_trailing_newline <file>
+# Guarantees the file ends with a newline so appended lines do not merge with
+# the previous line (a defconfig without a final newline is valid but common
+# enough to matter).
+abk_ensure_trailing_newline() {
+  local file="$1"
+  [ -s "$file" ] || return 0
+  if [ "$(tail -c 1 "$file" | wc -l)" -eq 0 ]; then
+    printf '\n' >> "$file"
+  fi
+}
+
 # abk_append_line_once <file> <line>
 # Appends <line> only when it is not already present (exact match).
 abk_append_line_once() {
@@ -73,6 +85,7 @@ abk_append_line_once() {
 
   abk_require_file "$file"
   if ! grep -Fqx -- "$line" "$file"; then
+    abk_ensure_trailing_newline "$file"
     printf '%s\n' "$line" >> "$file"
     abk_log "append line to $file: $line"
   else
@@ -93,6 +106,8 @@ abk_config_line() {
 
 # abk_set_config <symbol> <value> [file]
 # Removes any previous definition and appends the requested one. Idempotent.
+# Writes in place (preserving the file mode) and normalizes the trailing
+# newline before appending.
 abk_set_config() {
   local symbol="${1#CONFIG_}"
   local value="$2"
@@ -104,8 +119,10 @@ abk_set_config() {
 
   tmp="$(mktemp)"
   grep -v -E "^(CONFIG_${symbol}=|# CONFIG_${symbol} is not set$)" "$file" > "$tmp" || true
+  abk_ensure_trailing_newline "$tmp"
   abk_config_line "$symbol" "$value" >> "$tmp"
-  mv "$tmp" "$file"
+  cat "$tmp" > "$file"
+  rm -f "$tmp"
 
   abk_log "set CONFIG_${symbol}=$value in $file"
 }

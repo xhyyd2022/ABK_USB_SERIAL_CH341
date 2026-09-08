@@ -210,11 +210,35 @@ abk_usb_serial_enable_configs() {
   abk_enable_config USB_SERIAL_CH341
 }
 
+# GKI lists usbserial.ko in common/modules.bzl for bazel builds. Once
+# CONFIG_USB_SERIAL=y the .ko is no longer produced, so the entry must be
+# dropped or bazel fails with a missing-module error. Mirrors ABK's zram
+# handling in build.yml.
+abk_usb_serial_prune_bazel_modules() {
+  local common="$1"
+  local modules_bzl="$common/modules.bzl"
+
+  if [ ! -f "$modules_bzl" ]; then
+    abk_log "modules.bzl not present, skipping bazel module-list update"
+    return 0
+  fi
+
+  if grep -q '"drivers/usb/serial/usbserial\.ko"' "$modules_bzl"; then
+    sed -i 's|"drivers/usb/serial/usbserial\.ko",\?||g' "$modules_bzl"
+    abk_log "removed usbserial.ko from modules.bzl (now builtin)"
+  else
+    abk_log "usbserial.ko already absent from modules.bzl"
+  fi
+}
+
 # Fail loudly if any expected change did not land.
 abk_usb_serial_verify() {
   local dir="$1"
+  local common
   local makefile="$dir/Makefile"
   local kconfig="$dir/Kconfig"
+
+  common="$(cd "$dir/../../.." && pwd)"
 
   grep -Eq '^[[:space:]]*obj-\$\(CONFIG_USB_SERIAL\)' "$makefile" ||
     abk_die "Makefile is missing the CONFIG_USB_SERIAL link"
@@ -236,6 +260,11 @@ abk_usb_serial_verify() {
   grep -qxF 'CONFIG_USB_SERIAL_CH341=y' "$DEFCONFIG" ||
     abk_die "DEFCONFIG is missing CONFIG_USB_SERIAL_CH341=y"
 
+  if [ -f "$common/modules.bzl" ] &&
+     grep -q '"drivers/usb/serial/usbserial\.ko"' "$common/modules.bzl"; then
+    abk_die "modules.bzl still lists usbserial.ko while CONFIG_USB_SERIAL=y"
+  fi
+
   abk_log "verification passed"
 }
 
@@ -254,5 +283,6 @@ abk_usb_serial_apply() {
   abk_usb_serial_ensure_makefile "$dir"
   abk_usb_serial_ensure_kconfig "$dir"
   abk_usb_serial_enable_configs
+  abk_usb_serial_prune_bazel_modules "$common"
   abk_usb_serial_verify "$dir"
 }

@@ -63,6 +63,10 @@ ABK_USB_SERIAL_CH341/
 5. **阶段顺序**：`after_patch`（build.yml 第 3400 行）在 `编译内核`（第 5804 行）
    之前，配置改动会被 `build/build.sh` 的 `make gki_defconfig` 采用；bazel 路径
    会把 `gki_defconfig` 的差异提取进 `ksu.fragment`，改动同样保留。
+6. **`USB_SERIAL` 由 `=m` 改为 `=y`**：GKI 6.1/6.6/6.12 的 `gki_defconfig` 默认
+   `CONFIG_USB_SERIAL=m`。改为内建后不再产出 `usbserial.ko`，因此必须同步清理
+   `common/modules.bzl` 中的该条目（见下文第 9 步），否则 bazel 构建失败。
+   `CONFIG_USB_SERIAL_FTDI_SIO=m` 保持不变，仍可正常链接到内建的 usbserial。
 
 ## 内部逻辑
 
@@ -84,7 +88,12 @@ ABK_USB_SERIAL_CH341/
    CONFIG_USB_SERIAL_CH341=y
    ```
 
-9. 校验上述所有改动确实落地。
+9. 若存在 `$KERNEL_ROOT/common/modules.bzl`（bazel 构建的模块清单），移除其中
+   的 `drivers/usb/serial/usbserial.ko`。因为 `USB_SERIAL=y` 后不再产出
+   `usbserial.ko`，若清单仍列出会导致 bazel 报“模块缺失”。这与 ABK 对
+   `zram.ko`/`zsmalloc.ko` 的处理方式一致（`build.yml` 第 3135 行）。
+
+10. 校验上述所有改动确实落地。
 
 ## 在 ABK 中填写
 
